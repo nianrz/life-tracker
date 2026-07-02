@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { todayIso, addDays, formatShortDate } from "@/lib/dates";
 import type { Deliverable } from "@/lib/modules/student";
 
-function formatDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 export function StudentSummaryCard({ upcoming }: { upcoming: Deliverable[] }) {
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
+  const threeDaysOut = addDays(today, 3);
 
   return (
     <Link href="/student" className="block">
@@ -21,24 +18,21 @@ export function StudentSummaryCard({ upcoming }: { upcoming: Deliverable[] }) {
         <p className="text-[13px] text-[var(--text-secondary)] mb-2">Upcoming</p>
         <div className="flex flex-col gap-1.5 text-[13px]">
           {upcoming.map((d) => {
-            const soon = d.dueDate <= todayIso || d.dueDate <= isoDatePlus(todayIso, 3);
+            const soon = d.dueDate <= threeDaysOut;
             return (
               <div key={d.id} className="flex justify-between">
                 <span className="truncate pr-2">{d.title}</span>
                 <span className={soon ? "text-[var(--text-danger)] shrink-0" : "text-[var(--text-secondary)] shrink-0"}>
-                  {formatDate(d.dueDate)}
+                  {formatShortDate(d.dueDate)}
                 </span>
               </div>
             );
           })}
+          {upcoming.length === 0 && (
+            <p className="text-[var(--text-muted)]">Nothing upcoming.</p>
+          )}
         </div>
       </Card>
     </Link>
   );
-}
-
-function isoDatePlus(iso: string, days: number): string {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }

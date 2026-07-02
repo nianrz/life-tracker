@@ -10,12 +10,10 @@ import { fitnessEventsRepo } from "@/lib/db/repositories/fitnessEvents";
 import { deliverablesRepo } from "@/lib/db/repositories/deliverables";
 import { tasksRepo } from "@/lib/db/repositories/tasks";
 import type { Task, CalendarEvent } from "@/lib/types/core";
+import { todayIso } from "@/lib/dates";
 import type { Workout, FitnessEvent } from "@/lib/modules/fitness";
 import type { Deliverable } from "@/lib/modules/student";
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export function DashboardClient() {
   const workouts = useCrud<Workout>(workoutsRepo);

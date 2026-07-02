@@ -8,15 +8,10 @@ import { useCrud } from "@/lib/db/useCrud";
 import { workoutsRepo } from "@/lib/db/repositories/workouts";
 import { deliverablesRepo } from "@/lib/db/repositories/deliverables";
 import { transactionsRepo } from "@/lib/db/repositories/transactions";
+import { isThisMonth } from "@/lib/dates";
 import type { Workout } from "@/lib/modules/fitness";
 import type { Deliverable } from "@/lib/modules/student";
 import type { Transaction } from "@/lib/modules/finance";
-
-function isThisMonth(iso: string): boolean {
-  const now = new Date();
-  const d = new Date(iso + "T00:00:00");
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-}
 
 export function ModuleSummaryGrid() {
   const workouts = useCrud<Workout>(workoutsRepo);

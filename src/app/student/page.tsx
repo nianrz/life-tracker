@@ -9,18 +9,15 @@ import { DeliverableForm } from "@/components/student/DeliverableForm";
 import { useCrud } from "@/lib/db/useCrud";
 import { deliverablesRepo } from "@/lib/db/repositories/deliverables";
 import type { Deliverable } from "@/lib/modules/student";
+import { todayIso as todayIsoFn, formatShortDate } from "@/lib/dates";
 
-function formatDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 export default function StudentPage() {
   const deliverables = useCrud<Deliverable>(deliverablesRepo);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Deliverable | undefined>(undefined);
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = todayIsoFn();
 
   const sorted = useMemo(
     () => [...deliverables.items].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
@@ -92,7 +89,7 @@ export default function StudentPage() {
                       <span className="text-[13px] text-[var(--text-accent)]">{d.grade}%</span>
                     )}
                     <span className={`text-[13px] ${overdue ? "text-[var(--text-danger)]" : "text-[var(--text-secondary)]"}`}>
-                      {formatDate(d.dueDate)}
+                      {formatShortDate(d.dueDate)}
                     </span>
                     <RowActions onEdit={() => openEdit(d)} onDelete={() => deliverables.remove(d.id)} />
                   </div>

@@ -10,6 +10,7 @@ import { TransactionForm } from "@/components/finance/TransactionForm";
 import { useCrud } from "@/lib/db/useCrud";
 import { transactionsRepo } from "@/lib/db/repositories/transactions";
 import { getAccountBalances, type Transaction, type Account } from "@/lib/modules/finance";
+import { isThisMonth, formatShortDate } from "@/lib/dates";
 
 const ACCOUNT_LABELS: Record<Account, string> = {
   bank: "Bank",
@@ -19,16 +20,7 @@ const ACCOUNT_LABELS: Record<Account, string> = {
 
 const CHART_COLORS = ["#1D9E75", "#D85A30", "#7F77DD", "#D4537E", "#378ADD", "#BA7517"];
 
-function formatDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
-function isThisMonth(iso: string): boolean {
-  const now = new Date();
-  const d = new Date(iso + "T00:00:00");
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-}
 
 export default function FinancePage() {
   const transactions = useCrud<Transaction>(transactionsRepo);
@@ -150,7 +142,7 @@ export default function FinancePage() {
                 <div className="min-w-0">
                   <p className="truncate">{t.category}{t.note ? ` · ${t.note}` : ""}</p>
                   <p className="text-[12px] text-[var(--text-muted)]">
-                    {formatDate(t.date)} · {ACCOUNT_LABELS[t.account]}
+                    {formatShortDate(t.date)} · {ACCOUNT_LABELS[t.account]}
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">

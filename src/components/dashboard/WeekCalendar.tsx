@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
+import { todayIso, localIso, parseLocalDate, formatDate } from "@/lib/dates";
 import type { CalendarEvent } from "@/lib/types/core";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -13,15 +14,6 @@ function startOfWeek(date: Date): Date {
   d.setDate(d.getDate() - day);
   d.setHours(0, 0, 0, 0);
   return d;
-}
-
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function formatUpcomingDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
 const MODULE_COLOR: Record<string, string> = {
@@ -39,10 +31,8 @@ const MODULE_BG: Record<string, string> = {
 export function WeekCalendar({ events }: { events: CalendarEvent[] }) {
   const [weekOffset, setWeekOffset] = useState(0);
 
-  const today = new Date();
-  const todayIso = isoDate(today);
-
-  const base = startOfWeek(today);
+  const today = todayIso();
+  const base = startOfWeek(parseLocalDate(today));
   base.setDate(base.getDate() + weekOffset * 7);
 
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -66,9 +56,9 @@ export function WeekCalendar({ events }: { events: CalendarEvent[] }) {
     return acc;
   }, {});
 
-  // All upcoming events strictly after today, for the section below the grid.
+  // Upcoming events strictly after today, for the section below the grid.
   const upcomingEvents = dedupedEvents
-    .filter((ev) => ev.date > todayIso)
+    .filter((ev) => ev.date > today)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 6);
 
@@ -108,48 +98,36 @@ export function WeekCalendar({ events }: { events: CalendarEvent[] }) {
         </div>
       </div>
 
-      {/* Day rows: each day is its own row with date label + events inline */}
+      {/* Day rows */}
       <div className="flex flex-col gap-1">
         {days.map((d) => {
-          const iso = isoDate(d);
-          const isToday = iso === todayIso;
-          const isPast = iso < todayIso;
+          const iso = localIso(d); // ← local ISO, not UTC
+          const isToday = iso === today;
+          const isPast = iso < today;
           const dayEvents = eventsByDate[iso] ?? [];
 
           return (
             <div
               key={iso}
-              className={`flex items-start gap-3 rounded-lg px-2 py-1.5 ${
-                isToday ? "bg-[var(--bg-accent)]" : ""
-              }`}
+              className={`flex items-start gap-3 rounded-lg px-2 py-1.5 ${isToday ? "bg-[var(--bg-accent)]" : ""}`}
             >
-              {/* Date label */}
               <div className="w-16 shrink-0 flex items-center gap-1.5 pt-0.5">
-                <span
-                  className={`text-[12px] font-medium w-7 ${
-                    isToday
-                      ? "text-[var(--text-accent)]"
-                      : isPast
-                      ? "text-[var(--text-muted)]"
-                      : "text-[var(--text-secondary)]"
-                  }`}
-                >
+                <span className={`text-[12px] font-medium w-7 ${
+                  isToday ? "text-[var(--text-accent)]"
+                  : isPast ? "text-[var(--text-muted)]"
+                  : "text-[var(--text-secondary)]"
+                }`}>
                   {DAY_LABELS[(d.getDay() + 6) % 7]}
                 </span>
-                <span
-                  className={`text-[12px] ${
-                    isToday
-                      ? "text-[var(--text-accent)] font-semibold"
-                      : isPast
-                      ? "text-[var(--text-muted)]"
-                      : "text-[var(--text-secondary)]"
-                  }`}
-                >
+                <span className={`text-[12px] ${
+                  isToday ? "text-[var(--text-accent)] font-semibold"
+                  : isPast ? "text-[var(--text-muted)]"
+                  : "text-[var(--text-secondary)]"
+                }`}>
                   {d.getDate()}
                 </span>
               </div>
 
-              {/* Events for this day */}
               <div className="flex flex-col gap-1 flex-1 min-w-0">
                 {dayEvents.length === 0 ? (
                   <span className="text-[11px] text-[var(--text-muted)] py-0.5">—</span>
@@ -174,14 +152,14 @@ export function WeekCalendar({ events }: { events: CalendarEvent[] }) {
       </div>
 
       {/* Upcoming: events beyond the current displayed week */}
-      {upcomingEvents.some((ev) => !days.some((d) => isoDate(d) === ev.date)) && (
+      {upcomingEvents.some((ev) => !days.some((d) => localIso(d) === ev.date)) && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <p className="text-[11px] text-[var(--text-muted)] uppercase tracking-wide mb-2">
             Upcoming
           </p>
           <div className="flex flex-col gap-2">
             {upcomingEvents
-              .filter((ev) => !days.some((d) => isoDate(d) === ev.date))
+              .filter((ev) => !days.some((d) => localIso(d) === ev.date))
               .map((ev) => (
                 <div key={`up-${ev.id}`} className="flex items-start gap-2">
                   <span
@@ -194,7 +172,7 @@ export function WeekCalendar({ events }: { events: CalendarEvent[] }) {
                     {ev.title}
                   </span>
                   <span className="text-[11px] text-[var(--text-muted)] shrink-0 pt-0.5">
-                    {formatUpcomingDate(ev.date)}
+                    {formatDate(ev.date, { weekday: "short", month: "short", day: "numeric" })}
                   </span>
                 </div>
               ))}
