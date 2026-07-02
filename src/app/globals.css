@@ -131,3 +131,13 @@ body {
 * {
   border-color: var(--border);
 }
+
+/* iOS safe area for PWA bottom tab bar (avoids home indicator overlap) */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* Ensure the page body also accounts for the safe area at the bottom */
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}

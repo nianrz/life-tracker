@@ -16,7 +16,7 @@ export function BottomTabBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-[var(--border)] bg-[var(--surface-2)] flex justify-around py-2 z-50">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-[var(--border)] bg-[var(--surface-2)] flex justify-around pt-2 pb-safe z-50">
       {NAV_ITEMS.map(({ id, label, Icon, route }) => {
         const active = pathname === route;
         return (

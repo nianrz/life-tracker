@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -11,6 +11,23 @@ ensureModulesRegistered();
 export const metadata: Metadata = {
   title: "Life tracker",
   description: "Personal life tracker: fitness, school, and finances in one place.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Life tracker",
+  },
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1D9E75",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // needed for iPhone notch / home bar safe areas
 };
 
 export default async function RootLayout({
@@ -18,7 +35,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Hide chrome (sidebar, bottom bar) on the login page and auth routes.
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") ?? "";
   const hideChrome = pathname === "/login" || pathname.startsWith("/auth/");
