@@ -1,21 +1,27 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { PersonStanding, Plus } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SecondaryButton } from "@/components/ui/Form";
 import { RowActions } from "@/components/ui/RowActions";
 import { WorkoutForm } from "@/components/fitness/WorkoutForm";
 import { EventForm } from "@/components/fitness/EventForm";
+import { FitnessStatsRow } from "@/components/fitness/FitnessStatsRow";
+import { StravaSection } from "@/components/fitness/StravaSection";
 import { useCrud } from "@/lib/db/useCrud";
 import { workoutsRepo } from "@/lib/db/repositories/workouts";
 import { fitnessEventsRepo } from "@/lib/db/repositories/fitnessEvents";
+import {
+  stravaRepo,
+  type StravaConnection,
+  type StravaActivityRow,
+  type FitnessProfile,
+} from "@/lib/db/repositories/strava";
+import { computeFitnessSeries, currentFitness, fitnessTrend } from "@/lib/fitness/model";
+import { suggestToday, DEFAULT_WEEK_TEMPLATE } from "@/lib/fitness/suggest";
+import { formatDate } from "@/lib/dates";
 import type { Workout, FitnessEvent } from "@/lib/modules/fitness";
-
-function formatDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}
 
 export default function FitnessPage() {
   const workouts = useCrud<Workout>(workoutsRepo);
@@ -26,6 +32,63 @@ export default function FitnessPage() {
   const [eventFormOpen, setEventFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<FitnessEvent | undefined>(undefined);
 
+  // Strava state
+  const [connection, setConnection] = useState<StravaConnection | null>(null);
+  const [activities, setActivities] = useState<StravaActivityRow[]>([]);
+  const [profile, setProfile] = useState<FitnessProfile>({
+    vo2max: null,
+    vo2maxUpdatedAt: null,
+    weekTemplate: [],
+  });
+  const [series, setSeries] = useState<ReturnType<typeof computeFitnessSeries>>([]);
+
+  const loadStrava = useCallback(async () => {
+    const [conn, acts, prof, loads] = await Promise.all([
+      stravaRepo.getConnection(),
+      stravaRepo.listActivities(10),
+      stravaRepo.getProfile(),
+      stravaRepo.listActivityLoads(),
+    ]);
+    setConnection(conn);
+    setActivities(acts);
+    setProfile(prof);
+    setSeries(computeFitnessSeries(loads));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [conn, acts, prof, loads] = await Promise.all([
+        stravaRepo.getConnection(),
+        stravaRepo.listActivities(10),
+        stravaRepo.getProfile(),
+        stravaRepo.listActivityLoads(),
+      ]);
+      if (cancelled) return;
+      setConnection(conn);
+      setActivities(acts);
+      setProfile(prof);
+      setSeries(computeFitnessSeries(loads));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const current = currentFitness(series);
+  const trend = fitnessTrend(series, 7);
+
+  const suggestion = useMemo(() => {
+    const template = profile.weekTemplate.length === 7 ? profile.weekTemplate : DEFAULT_WEEK_TEMPLATE;
+    const dayOfWeek = (new Date().getDay() + 6) % 7; // Monday = 0
+    return suggestToday(template, current, dayOfWeek);
+  }, [profile.weekTemplate, current]);
+
+  async function saveVo2max(v: number) {
+    await stravaRepo.saveVo2max(v);
+    setProfile((p) => ({ ...p, vo2max: v, vo2maxUpdatedAt: new Date().toISOString().slice(0, 10) }));
+  }
+
   const sortedWorkouts = useMemo(
     () => [...workouts.items].sort((a, b) => a.date.localeCompare(b.date)),
     [workouts.items]
@@ -33,10 +96,6 @@ export default function FitnessPage() {
   const sortedEvents = useMemo(
     () => [...events.items].sort((a, b) => a.date.localeCompare(b.date)),
     [events.items]
-  );
-  const totalKm = useMemo(
-    () => workouts.items.reduce((sum, w) => sum + (w.distanceKm ?? 0), 0),
-    [workouts.items]
   );
 
   function openNewWorkout() { setEditingWorkout(undefined); setWorkoutFormOpen(true); }
@@ -53,8 +112,6 @@ export default function FitnessPage() {
     else events.create(data);
   }
 
-  const loading = workouts.loading || events.loading;
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
@@ -62,18 +119,34 @@ export default function FitnessPage() {
         <h1 className="text-[22px] font-medium">Fitness</h1>
       </div>
 
+      {/* Stats: Fitness score, VO2 max, Today's suggestion */}
+      <FitnessStatsRow
+        current={current}
+        trend={trend}
+        vo2max={profile.vo2max}
+        vo2maxUpdatedAt={profile.vo2maxUpdatedAt}
+        onSaveVo2max={saveVo2max}
+        suggestion={suggestion}
+      />
+
+      {/* Strava: connect card OR recent activity + fitness chart */}
+      <StravaSection
+        connection={connection}
+        activities={activities}
+        series={series}
+        onSynced={loadStrava}
+      />
+
+      {/* Planned workouts */}
       <Card>
         <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-[16px] font-medium">Workouts</h2>
-            <p className="text-[13px] text-[var(--text-muted)]">{totalKm}km planned this week</p>
-          </div>
+          <h2 className="text-[16px] font-medium">Planned workouts</h2>
           <SecondaryButton onClick={openNewWorkout} className="flex items-center gap-1.5">
             <Plus size={14} /> Add
           </SecondaryButton>
         </div>
 
-        {loading ? (
+        {workouts.loading ? (
           <p className="text-[13px] text-[var(--text-muted)] py-3">Loading…</p>
         ) : (
           <div className="flex flex-col divide-y divide-[var(--border)]">
@@ -108,6 +181,7 @@ export default function FitnessPage() {
         )}
       </Card>
 
+      {/* Events */}
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[16px] font-medium">Events</h2>
@@ -116,7 +190,7 @@ export default function FitnessPage() {
           </SecondaryButton>
         </div>
 
-        {loading ? (
+        {events.loading ? (
           <p className="text-[13px] text-[var(--text-muted)] py-3">Loading…</p>
         ) : (
           <div className="flex flex-col divide-y divide-[var(--border)]">
@@ -141,10 +215,6 @@ export default function FitnessPage() {
             )}
           </div>
         )}
-      </Card>
-
-      <Card className="text-[13px] text-[var(--text-muted)]">
-        Garmin / Strava sync coming in a later phase.
       </Card>
 
       <WorkoutForm

@@ -22,6 +22,8 @@ export function useCrud<T extends { id: string }>(repo: CrudRepo<T>) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Manual reload (e.g. after an external sync). Not used by the initial
+  // mount effect, so setState here is fine.
   const reload = useCallback(async () => {
     try {
       setLoading(true);
@@ -35,9 +37,30 @@ export function useCrud<T extends { id: string }>(repo: CrudRepo<T>) {
     }
   }, [repo]);
 
+  // Initial load. The async work is defined inside the effect (per
+  // react-hooks/set-state-in-effect) with a cancelled flag to avoid
+  // setting state after unmount.
   useEffect(() => {
-    reload();
-  }, [reload]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await repo.list();
+        if (!cancelled) {
+          setItems(data);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load data");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [repo]);
 
   const create = useCallback(
     async (item: Omit<T, "id">) => {
