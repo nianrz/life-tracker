@@ -50,5 +50,46 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/fitness?strava=error`);
   }
 
+  // Immediately pull recent activities so the user doesn't land on an
+  // empty Fitness page after connecting -- best effort, connection still
+  // succeeds even if this fails (they can hit Sync manually).
+  try {
+    const after = Math.floor((Date.now() - 90 * 24 * 60 * 60 * 1000) / 1000);
+    const actRes = await fetch(
+      `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=200`,
+      { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+    );
+    if (actRes.ok) {
+      const activities = await actRes.json();
+      const rows = activities.map((a: {
+        id: number; name: string; sport_type: string; start_date: string;
+        start_date_local: string; distance: number; moving_time: number;
+        elapsed_time: number; total_elevation_gain: number;
+        average_heartrate?: number; max_heartrate?: number; suffer_score?: number;
+      }) => ({
+        id: a.id,
+        user_id: user.id,
+        name: a.name,
+        sport_type: a.sport_type,
+        start_date: a.start_date,
+        local_date: a.start_date_local.slice(0, 10),
+        distance_m: a.distance,
+        moving_time_s: a.moving_time,
+        elapsed_time_s: a.elapsed_time,
+        elev_gain_m: a.total_elevation_gain,
+        avg_hr: a.average_heartrate ?? null,
+        max_hr: a.max_heartrate ?? null,
+        suffer_score: a.suffer_score ?? null,
+        synced_at: new Date().toISOString(),
+      }));
+      if (rows.length > 0) {
+        await supabase.from("strava_activities").upsert(rows);
+      }
+    }
+  } catch {
+    // Non-fatal -- the Fitness page always shows a visible Sync button
+    // as a fallback if this initial pull didn't happen.
+  }
+
   return NextResponse.redirect(`${origin}/fitness?strava=connected`);
 }

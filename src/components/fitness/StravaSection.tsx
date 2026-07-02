@@ -44,7 +44,11 @@ export function StravaSection({
       const res = await fetch("/api/strava/sync", { method: "POST" });
       const body = await res.json();
       if (res.ok) {
-        setSyncMessage(`Synced ${body.synced} activities`);
+        setSyncMessage(
+          body.synced === 0
+            ? "No activities found in the last 90 days"
+            : `Synced ${body.synced} activities`
+        );
         onSynced();
       } else {
         setSyncMessage(`Sync failed: ${body.error}`);
@@ -87,23 +91,30 @@ export function StravaSection({
     fatigue: p.fatigue,
   }));
 
+  const SyncControl = (
+    <div className="flex items-center gap-2">
+      {syncMessage && (
+        <span className="text-[12px] text-[var(--text-muted)]">{syncMessage}</span>
+      )}
+      <SecondaryButton onClick={sync} disabled={syncing} className="flex items-center gap-1.5">
+        <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
+        {syncing ? "Syncing…" : "Sync"}
+      </SecondaryButton>
+    </div>
+  );
+
   return (
     <>
-      {/* Recent activity */}
-      {recent && (
-        <Card>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-[16px] font-medium">Most recent activity</h2>
-            <div className="flex items-center gap-2">
-              {syncMessage && (
-                <span className="text-[12px] text-[var(--text-muted)]">{syncMessage}</span>
-              )}
-              <SecondaryButton onClick={sync} disabled={syncing} className="flex items-center gap-1.5">
-                <RefreshCw size={13} className={syncing ? "animate-spin" : ""} />
-                {syncing ? "Syncing…" : "Sync"}
-              </SecondaryButton>
-            </div>
-          </div>
+      {/* Recent activity, or an empty state that still exposes the Sync
+          control -- previously the Sync button only existed inside this
+          card, so it was invisible until at least one activity existed,
+          leaving no way to trigger the very first sync. */}
+      <Card>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-[16px] font-medium">Most recent activity</h2>
+          {SyncControl}
+        </div>
+        {recent ? (
           <div className="flex items-baseline justify-between">
             <div>
               <p className="text-[15px] font-medium">{recent.name}</p>
@@ -118,8 +129,12 @@ export function StravaSection({
               {recent.avgHr && <span>{Math.round(recent.avgHr)} bpm</span>}
             </div>
           </div>
-        </Card>
-      )}
+        ) : (
+          <p className="text-[13px] text-[var(--text-muted)]">
+            No activities synced yet. Tap Sync to pull your recent activities from Strava.
+          </p>
+        )}
+      </Card>
 
       {/* Fitness trend chart */}
       {chartData.length > 7 && (
