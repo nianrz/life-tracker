@@ -12,7 +12,8 @@ export interface StravaActivityRow {
   id: number;
   name: string;
   sportType: string;
-  localDate: string;
+  startDate: string; // full ISO timestamp -- use this for chronological ordering/display
+  localDate: string; // day-only, for grouping by calendar date
   distanceM: number;
   movingTimeS: number;
   elevGainM: number;
@@ -48,13 +49,17 @@ export const stravaRepo = {
     const { data, error } = await supabase
       .from("strava_activities")
       .select("*")
-      .order("local_date", { ascending: false })
+      // Sort by the full timestamp, not local_date (day-only) -- otherwise
+      // two activities on the same calendar day tie and Postgres returns
+      // them in an arbitrary order rather than actual time-of-day order.
+      .order("start_date", { ascending: false })
       .limit(limit);
     if (error) throw error;
     return (data ?? []).map((r) => ({
       id: r.id,
       name: r.name,
       sportType: r.sport_type,
+      startDate: r.start_date,
       localDate: r.local_date,
       distanceM: Number(r.distance_m),
       movingTimeS: r.moving_time_s,

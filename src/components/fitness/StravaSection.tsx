@@ -5,7 +5,6 @@ import { RefreshCw, Link2, Unlink } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { Card } from "@/components/ui/Card";
 import { SecondaryButton } from "@/components/ui/Form";
-import { formatShortDate } from "@/lib/dates";
 import type { StravaConnection, StravaActivityRow } from "@/lib/db/repositories/strava";
 import type { FitnessPoint } from "@/lib/fitness/model";
 
@@ -13,6 +12,19 @@ function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+// Shows both date and time of day, e.g. "Tue, Jul 1, 7:45 PM" -- important
+// because a day-only label can't distinguish a morning hike from an
+// evening run on the same calendar day.
+function formatDateTime(isoTimestamp: string): string {
+  return new Date(isoTimestamp).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatPace(distanceM: number, movingTimeS: number): string {
@@ -119,7 +131,7 @@ export function StravaSection({
             <div>
               <p className="text-[15px] font-medium">{recent.name}</p>
               <p className="text-[12px] text-[var(--text-muted)]">
-                {formatShortDate(recent.localDate)} · {recent.sportType}
+                {formatDateTime(recent.startDate)} · {recent.sportType}
               </p>
             </div>
             <div className="flex gap-4 text-[13px] text-[var(--text-secondary)]">
