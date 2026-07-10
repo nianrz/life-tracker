@@ -35,7 +35,7 @@ export function Panel({
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/30">
       <div
-        className="w-full sm:max-w-md bg-[var(--surface-2)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] p-5 max-h-[85vh] overflow-y-auto overscroll-contain"
+        className="w-full sm:max-w-md bg-[var(--surface-2)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] p-5 max-h-[85dvh] overflow-y-auto overscroll-contain"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[16px] font-medium">{title}</h2>
